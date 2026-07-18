@@ -2,27 +2,61 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>실시간 게임</title>
+    <title>실시간 멀티 플레이어 게임</title>
+    <style>
+        body { text-align: center; background: #222; color: white; font-family: sans-serif; }
+        canvas { background: #111; border: 3px solid #fff; margin-top: 10px; cursor: none; }
+    </style>
 </head>
 <body>
-    <h2>🎮 실시간 테스트방</h2>
-    <button onclick="sendClick()" style="padding:10px 20px; font-size:16px;">버튼 누르기</button>
-    <ul id="log"></ul>
+    <h2>🕹️ 마우스를 움직여 친구들과 만나보세요!</h2>
+    <p>화면 안에서 마우스를 움직이면 다른 친구들에게도 내 사각형이 실시간으로 보입니다.</p>
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        const log = document.getElementById('log');
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let localPlayers = {};
 
-        function sendClick() {
-            socket.emit('click');
-        }
-
-        socket.on('msg', (text) => {
-            const li = document.createElement('li');
-            li.innerText = text;
-            log.appendChild(li);
+        // 서버에서 플레이어 목록이 업데이트될 때마다 받음
+        socket.on('updatePlayers', (players) => {
+            localPlayers = players;
+            draw();
         });
+
+        // 마우스 움직임 감지해서 서버로 내 좌표 쏘기
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            socket.emit('move', { x: x, y: y });
+        });
+
+        // 화면 그리기 함수
+        function draw() {
+            // 잔상 효과를 위해 살짝 투명하게 지우기
+            ctx.fillStyle = 'rgba(17, 17, 17, 0.3)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 모든 플레이어 그리기
+            Object.keys(localPlayers).forEach((id) => {
+                const player = localPlayers[id];
+                ctx.fillStyle = player.color;
+                
+                // 내 캐릭터는 조금 더 크게 표시
+                if (id === socket.id) {
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(player.x - 12, player.y - 12, 24, 24);
+                }
+                
+                ctx.fillRect(player.x - 10, player.y - 10, 20, 20);
+            });
+        }
     </script>
 </body>
 </html>
